@@ -47,26 +47,21 @@ app.use((req, res) => {
 // Error Handler (MUST be last)
 app.use(errorHandler);
 
-// Start Server
-const startServer = async () => {
-    try {
-        console.log("Starting server...");
-        console.log("MONGO_URI:", process.env.MONGO_URI ? "Loaded" : "Missing");
+// Connect to database for serverless environment
+dbConnect().then(() => {
+    console.log("✅ Database connected");
+}).catch(err => {
+    console.error("Database connection failed:", err.message);
+});
 
-        await dbConnect();
-        console.log("✅ Database connected");
+// Only start the server locally (Vercel handles this automatically)
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 8080;
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+        console.log(`📊 Health: http://localhost:${PORT}/health`);
+    });
+}
 
-        const PORT = process.env.PORT || 8080;
-
-        app.listen(PORT, () => {
-            console.log(`🚀 Server running on http://localhost:${PORT}`);
-            console.log(`📊 Health: http://localhost:${PORT}/health`);
-        });
-
-    } catch (error) {
-        console.error("Startup Error:", error.message);
-        process.exit(1);
-    }
-};
-
-startServer();
+export default app;
+export default app; 
