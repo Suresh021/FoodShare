@@ -24,7 +24,23 @@ const signup = async (req, res) => {
     });
 
     await newUser.save();
-    res.status(201).json({ message: "User created successfully" });
+
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(201).json({
+      message: "User created successfully",
+      token,
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role
+      }
+    });
   } catch (err) {
     console.log(err);
     res.status(400).json({ message: "Unable to create user" });
@@ -56,7 +72,7 @@ const login = async (req, res) => {
       message: "Login successful",
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role
