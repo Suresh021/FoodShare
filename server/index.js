@@ -62,6 +62,4 @@ if (process.env.NODE_ENV !== 'production') {
         console.log(`📊 Health: http://localhost:${PORT}/health`);
     });
 }
-
 export default app;
-export default app; 
