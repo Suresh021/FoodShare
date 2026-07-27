@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://foodshare-ch78qw5c2-vishnu-s-projects-efa10ec3.vercel.app/api', // Match the backend port in index.js
+  baseURL: 'https://foodshare-api.vercel.app/api',
 });
 
 // Add a request interceptor to include the auth token
