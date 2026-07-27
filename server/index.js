@@ -33,6 +33,17 @@ app.get("/", (req, res) => {
     res.json({ message: "Welcome to FoodShare API" });
 });
 
+// Database connection middleware for Serverless
+app.use(async (req, res, next) => {
+    try {
+        await dbConnect();
+        next();
+    } catch (err) {
+        console.error("Database connection failed:", err.message);
+        res.status(500).json({ message: `Database error: ${err.message}` });
+    }
+});
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
