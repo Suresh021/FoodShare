@@ -171,8 +171,8 @@ const rateDelivery = async (req, res) => {
     const { id } = req.params;
     const { rating, feedback } = req.body;
 
-    if (!rating || rating < 0 || rating > 5) {
-      return res.status(400).json({ message: "Rating must be between 0 and 5" });
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: "Rating must be between 1 and 5" });
     }
 
     let delivery = await Delivery.findById(id);
@@ -181,10 +181,32 @@ const rateDelivery = async (req, res) => {
       return res.status(404).json({ message: "Delivery not found" });
     }
 
+    // Ensure authorized user (NGO or Partner involved in the delivery)
+    const userId = req.user.id;
+    if (delivery.ngoId.toString() !== userId && delivery.partnerId.toString() !== userId && req.user.role !== 'ngo') {
+      return res.status(403).json({ message: "Not authorized to rate this delivery" });
+    }
+
     delivery.rating = rating;
-    if (feedback) delivery.feedback = feedback;
+    if (feedback !== undefined) delivery.feedback = feedback;
 
     await delivery.save();
+
+    // Recalculate partner's overall rating
+    if (delivery.partnerId) {
+      const User = (await import("../models/userModel.js")).default;
+      const partner = await User.findById(delivery.partnerId);
+      if (partner) {
+        const currentTotal = partner.totalDeliveries || 0;
+        const currentRating = partner.rating || 0;
+        const newTotal = currentTotal + 1;
+        const newRating = Number(((currentRating * currentTotal + rating) / newTotal).toFixed(1));
+        
+        partner.totalDeliveries = newTotal;
+        partner.rating = newRating;
+        await partner.save();
+      }
+    }
 
     res.status(200).json({
       success: true,

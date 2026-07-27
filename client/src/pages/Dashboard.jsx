@@ -110,6 +110,36 @@ const Dashboard = () => {
     }
   };
 
+  const [ratingDelivery, setRatingDelivery] = useState(null);
+  const [ratingStars, setRatingStars] = useState(5);
+  const [hoverStars, setHoverStars] = useState(0);
+  const [feedback, setFeedback] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+
+  const handleOpenRatingModal = (delivery) => {
+    setRatingDelivery(delivery);
+    setRatingStars(delivery.rating || 5);
+    setFeedback(delivery.feedback || '');
+  };
+
+  const handleSubmitRating = async (e) => {
+    e.preventDefault();
+    if (!ratingDelivery) return;
+    try {
+      setSubmittingRating(true);
+      await api.put(`/deliveries/${ratingDelivery._id}/rate`, {
+        rating: ratingStars,
+        feedback
+      });
+      setRatingDelivery(null);
+      fetchDashboardData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to submit rating');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   const totalItems = data.length;
   const activeItems = data.filter(d => ['available', 'pending'].includes(d.status)).length;
   const completedItems = data.filter(d => ['delivered', 'completed'].includes(d.status)).length;
@@ -219,8 +249,18 @@ const Dashboard = () => {
                     </>
                   ) : (
                     <>
-                      <p className="font-semibold text-slate-900">Delivery #{item._id.substring(0, 8)}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{new Date(item.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}</p>
+                      <p className="font-semibold text-slate-900">
+                        {item.foodListingId?.foodType ? `${item.foodListingId.foodType} Delivery` : `Delivery #${item._id.substring(0, 8)}`}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {item.partnerId?.name ? `Partner: ${item.partnerId.name} · ` : ''}
+                        {new Date(item.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
+                      </p>
+                      {item.feedback && (
+                        <p className="text-xs text-slate-500 italic mt-1 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                          "{item.feedback}"
+                        </p>
+                      )}
                     </>
                   )}
                 </div>
@@ -234,12 +274,122 @@ const Dashboard = () => {
                       Mark Complete
                     </button>
                   )}
+                  {user.role === 'ngo' && item.status === 'completed' && (
+                    item.rating > 0 ? (
+                      <button
+                        onClick={() => handleOpenRatingModal(item)}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
+                      >
+                        <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                        <span>{item.rating}/5</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleOpenRatingModal(item)}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-all hover:scale-105"
+                      >
+                        <Star className="h-3.5 w-3.5 text-white fill-white" />
+                        <span>Rate Delivery</span>
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* NGO Rating Modal */}
+      {ratingDelivery && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center">
+                  <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
+                    Rate Delivery
+                  </h3>
+                  <p className="text-xs text-slate-400">Share feedback for the delivery partner</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setRatingDelivery(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitRating} className="space-y-4">
+              {/* Star Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 text-center">
+                  Select Rating
+                </label>
+                <div className="flex items-center justify-center gap-2 py-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRatingStars(star)}
+                      onMouseEnter={() => setHoverStars(star)}
+                      onMouseLeave={() => setHoverStars(0)}
+                      className="p-1 focus:outline-none transition-transform hover:scale-125"
+                    >
+                      <Star
+                        className={`h-8 w-8 transition-colors ${
+                          star <= (hoverStars || ratingStars)
+                            ? 'text-amber-400 fill-amber-400'
+                            : 'text-slate-200 fill-slate-100'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-center text-xs font-medium text-amber-600 mt-1">
+                  {['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][(hoverStars || ratingStars) - 1]}
+                </p>
+              </div>
+
+              {/* Feedback Text */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Feedback & Comments (Optional)
+                </label>
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="How was the food condition and partner service?"
+                  rows="3"
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm text-slate-900 transition-all resize-none"
+                ></textarea>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRatingDelivery(null)}
+                  className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingRating}
+                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold text-sm hover:from-amber-600 hover:to-orange-600 shadow-md shadow-amber-500/20 transition-all disabled:opacity-60"
+                >
+                  {submittingRating ? 'Submitting...' : 'Submit Rating'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
