@@ -71,6 +71,8 @@ const Dashboard = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [ratingModal, setRatingModal] = useState(null);
+  const [ratingData, setRatingData] = useState({ rating: 5, feedback: '' });
 
   const config = roleConfig[user.role] || roleConfig.donor;
   const RoleIcon = config.icon;
@@ -107,6 +109,20 @@ const Dashboard = () => {
       fetchDashboardData();
     } catch {
       alert('Failed to complete delivery');
+    }
+  };
+
+  const submitRating = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/deliveries/${ratingModal._id}/rate`, {
+        rating: ratingData.rating,
+        feedback: ratingData.feedback
+      });
+      setRatingModal(null);
+      fetchDashboardData();
+    } catch (err) {
+      alert('Failed to submit rating');
     }
   };
 
@@ -226,6 +242,7 @@ const Dashboard = () => {
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <StatusBadge status={item.status} />
+                  
                   {user.role === 'partner' && item.status === 'pending' && (
                     <button
                       onClick={() => handleCompleteDelivery(item._id)}
@@ -234,12 +251,85 @@ const Dashboard = () => {
                       Mark Complete
                     </button>
                   )}
+
+                  {user.role === 'ngo' && item.status === 'completed' && item.rating === 0 && (
+                    <button
+                      onClick={() => {
+                        setRatingModal(item);
+                        setRatingData({ rating: 5, feedback: '' });
+                      }}
+                      className="text-xs font-semibold bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors flex items-center gap-1"
+                    >
+                      <Star className="h-3 w-3" fill="currentColor" /> Rate
+                    </button>
+                  )}
+
+                  {item.rating > 0 && (
+                    <span className="flex items-center gap-1 text-amber-500 text-xs font-bold bg-amber-50 px-2 py-1 rounded-md">
+                      <Star className="h-3 w-3" fill="currentColor" /> {item.rating}/5
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Rating Modal */}
+      {ratingModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl">
+            <h3 className="text-xl font-bold text-slate-900 mb-2" style={{ fontFamily: 'Sora, sans-serif' }}>Rate this Delivery</h3>
+            <p className="text-sm text-slate-500 mb-6">How was the food quality and delivery experience?</p>
+            
+            <form onSubmit={submitRating}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Rating (1-5)</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRatingData({ ...ratingData, rating: star })}
+                      className={`p-2 rounded-xl transition-all ${ratingData.rating >= star ? 'text-amber-500 bg-amber-50' : 'text-slate-300 bg-slate-50 hover:bg-slate-100'}`}
+                    >
+                      <Star className="h-6 w-6" fill={ratingData.rating >= star ? "currentColor" : "none"} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Feedback (Optional)</label>
+                <textarea
+                  value={ratingData.feedback}
+                  onChange={(e) => setRatingData({ ...ratingData, feedback: e.target.value })}
+                  placeholder="Share your thoughts about the food..."
+                  className="w-full rounded-xl border-slate-200 focus:border-green-500 focus:ring-green-500 bg-slate-50 p-3"
+                  rows="3"
+                ></textarea>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRatingModal(null)}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-slate-700 font-semibold hover:bg-slate-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 rounded-xl text-white font-semibold bg-green-600 hover:bg-green-700 transition-colors"
+                >
+                  Submit Review
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
