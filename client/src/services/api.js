@@ -7,7 +7,7 @@ const getBaseUrl = () => {
   if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     return 'http://localhost:8080/api';
   }
-  return 'https://foodshare-ch78qw5c2-vishnu-s-projects-efa10ec3.vercel.app/api';
+  return 'https://foodshare-api.vercel.app/api';
 };
 
 const api = axios.create({

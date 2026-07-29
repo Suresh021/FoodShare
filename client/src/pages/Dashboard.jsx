@@ -286,7 +286,6 @@ const Dashboard = () => {
               const isFoodItem = user.role === 'donor';
               const food = isFoodItem ? item : item.foodListingId;
               const delivery = isFoodItem ? null : item;
-              const isExpired = food?.expiryTime && new Date(food.expiryTime).getTime() <= Date.now();
 
               return (
                 <div key={item._id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors">
