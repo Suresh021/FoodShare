@@ -116,7 +116,7 @@ const CreateFood = () => {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-8">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm flex items-center gap-2">
                 <span>⚠</span> {error}

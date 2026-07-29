@@ -90,7 +90,7 @@ const Profile = () => {
         </div>
 
         {/* Profile Form */}
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
           {message && <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-2xl mb-6 text-sm flex items-center gap-2">✅ {message}</div>}
           {error && <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-2xl mb-6 text-sm">⚠ {error}</div>}
 

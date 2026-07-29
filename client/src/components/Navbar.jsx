@@ -198,6 +198,19 @@ const Navbar = () => {
               <Link to="/profile" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-green-50 hover:text-green-700" onClick={() => setMobileOpen(false)}>
                 <User className="h-4 w-4" /> Profile
               </Link>
+              <button
+                onClick={() => { setShowNotifs(!showNotifs); setMobileOpen(false); if (unreadCount > 0) markRead(); }}
+                className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-green-50 hover:text-green-700"
+              >
+                <span className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-slate-500" /> Notifications
+                </span>
+                {unreadCount > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {unreadCount} new
+                  </span>
+                )}
+              </button>
             </>
           )}
           {user?.role === 'donor' && (
