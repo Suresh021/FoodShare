@@ -2,21 +2,19 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { PlusCircle, ArrowLeft, UtensilsCrossed, Clock, Tag, FileText, Image, Leaf } from 'lucide-react';
-
-const foodTypes = ['Rice', 'Bread', 'Biryani', 'Curry', 'Roti', 'Sweets', 'Snacks', 'Fruits', 'Vegetables', 'Protein', 'Mixed Meals', 'Soup', 'Desserts', 'Other'];
+import { PlusCircle, ArrowLeft, UtensilsCrossed, Clock, Leaf, Plus, Trash2, Image } from 'lucide-react';
 
 const CreateFood = () => {
-  const [formData, setFormData] = useState({
-    foodType: '',
-    quantity: '',
-    description: '',
-    image: '',
-    expiryTime: ''
-  });
+  const now = new Date();
+  const defaultMinDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+  // Multiple items state: EACH item has its OWN Dietary Category (Pure Veg / Non-Veg), Name, Qty, Description, Expiry, & Photo!
+  const [items, setItems] = useState([
+    { name: '', quantity: '', dietaryType: 'Veg', description: '', expiryTime: defaultMinDateTime, image: '' }
+  ]);
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -33,14 +31,63 @@ const CreateFood = () => {
     );
   }
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleItemChange = (index, field, value) => {
+    const updated = [...items];
+    updated[index][field] = value;
+    setItems(updated);
+  };
+
+  const addItemRow = () => {
+    setItems([...items, { name: '', quantity: '', dietaryType: 'Veg', description: '', expiryTime: defaultMinDateTime, image: '' }]);
+  };
+
+  const removeItemRow = (index) => {
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
-      await api.post('/foods', { ...formData, quantity: Number(formData.quantity) });
+      const validItems = items.filter(it => it.name && it.quantity);
+
+      if (validItems.length === 0) {
+        setError('Please add at least one food item with name and quantity.');
+        setLoading(false);
+        return;
+      }
+
+      // Auto calculate total quantity from items
+      const totalQty = validItems.reduce((acc, curr) => acc + Number(curr.quantity || 0), 0);
+
+      // Earliest item expiry
+      const itemExpiries = validItems.map(i => i.expiryTime).filter(Boolean);
+      const overallExpiry = itemExpiries.length > 0 ? itemExpiries.sort()[0] : defaultMinDateTime;
+
+      // Auto cover image from first item with image
+      const coverImage = validItems.find(i => i.image)?.image || '';
+
+      // Primary title from first item
+      const mainTitle = validItems[0].name;
+
+      const payload = {
+        foodType: mainTitle,
+        dietaryType: validItems[0].dietaryType || 'Veg',
+        quantity: totalQty,
+        expiryTime: overallExpiry,
+        image: coverImage,
+        description: validItems.map(i => `${i.name} (${i.quantity} servings)`).join(' | '),
+        items: validItems.map(it => ({
+          ...it,
+          quantity: Number(it.quantity)
+        }))
+      };
+
+      await api.post('/foods', payload);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to post food listing');
@@ -49,19 +96,12 @@ const CreateFood = () => {
     }
   };
 
-  // Get min datetime (now)
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const minDateTime = now.toISOString().slice(0, 16);
-
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      {/* Back Button */}
+    <div className="max-w-4xl mx-auto px-4 py-8">
       <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-green-600 font-medium mb-6 transition-colors">
         <ArrowLeft className="h-4 w-4" /> Back to Dashboard
       </Link>
 
-      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-green-200">
           <PlusCircle className="h-7 w-7 text-white" />
@@ -70,163 +110,200 @@ const CreateFood = () => {
           <h1 className="text-2xl font-bold text-slate-900" style={{ fontFamily: 'Sora, sans-serif' }}>
             Post Food Donation
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">Help reduce waste by sharing your surplus food</p>
+          <p className="text-slate-500 text-sm mt-0.5">Add individual food items, selecting Pure Veg or Non-Veg for each dish</p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Form */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm">
-                ⚠ {error}
+              <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm flex items-center gap-2">
+                <span>⚠</span> {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Food Type */}
-              <div>
-                <label className="label flex items-center gap-2">
-                  <Tag className="h-4 w-4 text-slate-400" /> Food Type
-                </label>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {foodTypes.map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, foodType: type })}
-                      className={`px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all duration-200 ${
-                        formData.foodType === type
-                          ? 'bg-green-600 text-white border-green-600 shadow-md'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-green-400 hover:text-green-600'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  name="foodType"
-                  value={formData.foodType}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="Or type a custom food type..."
-                  required
-                />
-              </div>
-
-              {/* Quantity & Expiry */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
-                  <label className="label flex items-center gap-2">
-                    <UtensilsCrossed className="h-4 w-4 text-slate-400" /> Quantity (servings)
-                  </label>
-                  <input
-                    type="number"
-                    name="quantity"
-                    value={formData.quantity}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="e.g. 50"
-                    min="1"
-                    required
-                  />
+                  <h3 className="font-bold text-slate-800 text-base">Food Items & Details</h3>
+                  <p className="text-xs text-slate-500">Add each dish with its own category (Veg/Non-Veg), servings, expiry time, & photo</p>
                 </div>
-                <div>
-                  <label className="label flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-slate-400" /> Expiry Time
-                  </label>
-                  <input
-                    type="datetime-local"
-                    name="expiryTime"
-                    value={formData.expiryTime}
-                    onChange={handleChange}
-                    className="input-field"
-                    min={minDateTime}
-                    required
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={addItemRow}
+                  className="text-xs font-bold text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Item
+                </button>
               </div>
 
-              {/* Description */}
-              <div>
-                <label className="label flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-slate-400" /> Description
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows="4"
-                  className="input-field resize-none"
-                  placeholder="Describe the food (preparation, dietary info, pickup location, etc.)"
-                  required
-                ></textarea>
-              </div>
+              {/* Items List */}
+              <div className="space-y-6">
+                {items.map((item, idx) => (
+                  <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4 relative">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                      <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Item #{idx + 1}</span>
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeItemRow(idx)}
+                          className="text-red-500 hover:text-red-700 p-1 text-xs font-bold flex items-center gap-1"
+                        >
+                          <Trash2 className="h-4 w-4" /> Remove Item
+                        </button>
+                      )}
+                    </div>
 
-              {/* Image URL */}
-              <div>
-                <label className="label flex items-center gap-2">
-                  <Image className="h-4 w-4 text-slate-400" /> Image URL{' '}
-                  <span className="text-xs text-slate-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="url"
-                  name="image"
-                  value={formData.image}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="https://example.com/photo.jpg"
-                />
-                {formData.image && (
-                  <div className="mt-3 rounded-xl overflow-hidden border border-slate-200 h-36">
-                    <img
-                      src={formData.image}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
+                    {/* Per-Item Veg / Non-Veg Selection */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 block mb-1.5">Dietary Category</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleItemChange(idx, 'dietaryType', 'Veg')}
+                          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 font-bold text-xs transition-all ${
+                            item.dietaryType === 'Veg'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-500 ring-2 ring-emerald-200'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300'
+                          }`}
+                        >
+                          <span className="w-3 h-3 rounded-full bg-emerald-600 flex-shrink-0"></span>
+                          <span>Pure Veg 🥬</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleItemChange(idx, 'dietaryType', 'Non-Veg')}
+                          className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 font-bold text-xs transition-all ${
+                            item.dietaryType === 'Non-Veg'
+                              ? 'bg-red-50 text-red-800 border-red-500 ring-2 ring-red-200'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-red-300'
+                          }`}
+                        >
+                          <span className="w-3 h-3 rounded-full bg-red-600 flex-shrink-0"></span>
+                          <span>Non-Veg 🍗</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Item Name & Servings Qty */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-bold text-slate-600">Item Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Ajwa Chicken Biryani / Paneer Butter Masala"
+                          value={item.name}
+                          onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                          className="input-field text-sm bg-white"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600">Servings Qty</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 80"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                          className="input-field text-sm bg-white"
+                          min="1"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Item Description & Expiry Date */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600">Item Description / Notes</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Cooked 2 hours ago, includes raita & salan"
+                          value={item.description}
+                          onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                          className="input-field text-sm bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-blue-600" /> Expiry Date & Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={item.expiryTime || defaultMinDateTime}
+                          onChange={(e) => handleItemChange(idx, 'expiryTime', e.target.value)}
+                          className="input-field text-sm bg-white py-2"
+                          min={defaultMinDateTime}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Item Photo URL */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                        <Image className="h-3.5 w-3.5 text-slate-400" /> Photo URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/photo-..."
+                        value={item.image}
+                        onChange={(e) => handleItemChange(idx, 'image', e.target.value)}
+                        className="input-field text-sm bg-white"
+                      />
+
+                      {/* Live Image Preview */}
+                      {item.image && (
+                        <div className="mt-2.5">
+                          <p className="text-[10px] font-bold text-slate-500 mb-1">Live Photo Preview:</p>
+                          <div className="h-32 w-48 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm">
+                            <img
+                              src={item.image}
+                              alt={item.name || 'Item'}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full justify-center text-base py-3.5 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="btn-primary w-full justify-center text-base py-3.5 shadow-lg shadow-green-200"
               >
                 {loading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                    </svg>
-                    Posting...
-                  </span>
+                  <span>Posting Food Donation...</span>
                 ) : (
-                  <><PlusCircle className="h-5 w-5" /> Post Food Donation</>
+                  <><PlusCircle className="h-5 w-5" /> Submit Food Donation</>
                 )}
               </button>
             </form>
           </div>
         </div>
 
-        {/* Sidebar Tips */}
+        {/* Sidebar Info */}
         <div className="space-y-4">
           <div className="bg-gradient-to-br from-green-50 to-teal-50 border border-green-100 rounded-3xl p-6">
             <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center mb-4">
               <Leaf className="h-5 w-5 text-green-600" />
             </div>
-            <h3 className="font-bold text-slate-800 mb-3 text-sm">Tips for a great listing</h3>
+            <h3 className="font-bold text-slate-800 mb-3 text-sm">Per-Item Customization</h3>
             <ul className="space-y-2.5 text-xs text-slate-600">
               {[
-                'Be specific about food type and quantity',
-                'Set an accurate expiry time',
-                'Add a clear photo to attract partners',
-                'Include any dietary info (veg/non-veg)',
-                'Mention the pickup location or timing',
+                'Select Pure Veg 🥬 or Non-Veg 🍗 individually for each item',
+                'Specify individual quantities, descriptions, and expiry times',
+                'Each dish appears as its own standalone food listing for NGOs',
+                'Live photo previews render instantly for every item URL',
               ].map((tip, i) => (
                 <li key={i} className="flex items-start gap-2">
                   <span className="w-4 h-4 rounded-full bg-green-500 text-white text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">
@@ -236,13 +313,6 @@ const CreateFood = () => {
                 </li>
               ))}
             </ul>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-100 rounded-3xl p-5">
-            <p className="text-xs font-bold text-amber-700 mb-1">⏱ Act Fast!</p>
-            <p className="text-xs text-amber-600 leading-relaxed">
-              Listings with shorter expiry windows get claimed 3x faster. Post as soon as food is ready.
-            </p>
           </div>
         </div>
       </div>

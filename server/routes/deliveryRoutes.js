@@ -1,30 +1,39 @@
 import express from "express";
 import {
-    completeDelivery,
-    createDelivery,
-    deleteDelivery,
-    getAllDeliveries,
-    getDeliveriesByStatus,
-    getDeliveryById,
-    getMyDeliveries,
-    getNgoDeliveries,
-    getPartnerDeliveries,
-    rateDelivery,
-    updateDeliveryStatus
+  claimOpenDelivery,
+  deleteDelivery,
+  getAllDeliveries,
+  getDeliveryById,
+  getMyDeliveries,
+  getNotifications,
+  getOpenDeliveries,
+  markNotificationsRead,
+  rateDelivery,
+  requestDeliveryByNgo,
+  verifyOtpAndComplete
 } from "../controllers/deliveryController.js";
 import { checkRole, verifyToken } from "../middleware/authMiddleware.js";
 
 const DeliveryRoutes = express.Router();
-DeliveryRoutes.post("/", verifyToken, checkRole("partner"), createDelivery);
+
+// NGO creates open delivery request
+DeliveryRoutes.post("/request", verifyToken, checkRole("ngo"), requestDeliveryByNgo);
+
+// Partner views open requests & claims
+DeliveryRoutes.get("/open", verifyToken, getOpenDeliveries);
+DeliveryRoutes.put("/:id/claim", verifyToken, checkRole("partner"), claimOpenDelivery);
+
+// OTP Verification & completion
+DeliveryRoutes.put("/:id/verify-otp", verifyToken, checkRole("partner"), verifyOtpAndComplete);
+
+// Rating & My Deliveries
+DeliveryRoutes.get("/my-deliveries", verifyToken, getMyDeliveries);
+DeliveryRoutes.get("/notifications", verifyToken, getNotifications);
+DeliveryRoutes.put("/notifications/read", verifyToken, markNotificationsRead);
+
 DeliveryRoutes.get("/", getAllDeliveries);
-DeliveryRoutes.get("/my-deliveries", verifyToken, checkRole("partner", "ngo"), getMyDeliveries);
-DeliveryRoutes.get("/status/:status", getDeliveriesByStatus);
-DeliveryRoutes.get("/partner/:partnerId", getPartnerDeliveries);
-DeliveryRoutes.get("/ngo/:ngoId", getNgoDeliveries);
 DeliveryRoutes.get("/:id", getDeliveryById);
-DeliveryRoutes.put("/:id/complete", verifyToken, checkRole("partner"), completeDelivery);
-DeliveryRoutes.put("/:id/rate", verifyToken, checkRole("partner", "ngo"), rateDelivery);
-DeliveryRoutes.put("/:id/status", verifyToken, checkRole("partner"), updateDeliveryStatus);
-DeliveryRoutes.delete("/:id", verifyToken, checkRole("partner"), deleteDelivery);
+DeliveryRoutes.put("/:id/rate", verifyToken, rateDelivery);
+DeliveryRoutes.delete("/:id", verifyToken, deleteDelivery);
 
 export default DeliveryRoutes;

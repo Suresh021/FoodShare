@@ -43,8 +43,16 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Client-side phone number check
+    const cleanPhone = formData.phone.trim();
+    if (!/^\d{10}$/.test(cleanPhone)) {
+      setError('Phone number must be exactly a valid 10-digit number (e.g. 9876543210).');
+      return;
+    }
+
     setLoading(true);
-    const result = await register(formData);
+    const result = await register({ ...formData, phone: cleanPhone });
     if (result.success) {
       navigate('/dashboard');
     } else {
@@ -115,10 +123,14 @@ const Register = () => {
                 />
               </div>
               <div>
-                <label className="label">Phone Number</label>
+                <label className="label">Phone Number (10 Digits)</label>
                 <input
-                  type="text" name="phone" value={formData.phone}
-                  onChange={handleChange} className="input-field" placeholder="9876543210" required
+                  type="tel" name="phone" value={formData.phone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setFormData({ ...formData, phone: val });
+                  }}
+                  className="input-field" placeholder="9876543210" maxLength="10" required
                 />
               </div>
               <div>

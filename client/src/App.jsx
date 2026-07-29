@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import FoodListings from './pages/FoodListings';
 import CreateFood from './pages/CreateFood';
+import Profile from './pages/Profile';
 
 import Navbar from './components/Navbar';
 
@@ -50,6 +51,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <CreateFood />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 }
               />

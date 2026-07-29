@@ -1,7 +1,17 @@
 import axios from 'axios';
 
+const getBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:8080/api';
+  }
+  return 'https://foodshare-ch78qw5c2-vishnu-s-projects-efa10ec3.vercel.app/api';
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://foodshare-ch78qw5c2-vishnu-s-projects-efa10ec3.vercel.app/api',
+  baseURL: getBaseUrl(),
 });
 
 // Add a request interceptor to include the auth token

@@ -25,9 +25,26 @@ const foodlistingSchema = mongoose.Schema({
         type: String
     },
 
+    dietaryType: {
+        type: String,
+        enum: ['Veg', 'Non-Veg'],
+        default: 'Veg'
+    },
+
+    items: [
+        {
+            name: { type: String },
+            quantity: { type: Number },
+            description: { type: String },
+            dietaryType: { type: String, enum: ['Veg', 'Non-Veg'], default: 'Veg' },
+            image: { type: String },
+            expiryTime: { type: Date }
+        }
+    ],
+
     status: {
         type: String,
-        enum: ['available', 'claimed', 'delivered'],
+        enum: ['available', 'requested', 'claimed', 'delivered'],
         default: 'available'
     },
 

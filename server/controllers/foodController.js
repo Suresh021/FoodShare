@@ -2,28 +2,53 @@ import FoodListing from "../models/foodlistingModel.js";
 
 const createFoodListing = async (req, res) => {
   try {
-    const { foodType, quantity, description, image, expiryTime } = req.body;
+    const { foodType, quantity, description, image, expiryTime, dietaryType, items } = req.body;
     const donorId = req.user.id;
 
-    if (!foodType || !quantity) {
-      return res.status(400).json({ message: "Food type and quantity are required" });
+    const validItems = Array.isArray(items) && items.length > 0
+      ? items.filter(it => it.name && it.quantity)
+      : [];
+
+    let createdListings = [];
+
+    if (validItems.length > 0) {
+      // Create separate FoodListing document for EACH item!
+      const promises = validItems.map(item => {
+        const newFood = new FoodListing({
+          donorId,
+          foodType: item.name,
+          quantity: Number(item.quantity),
+          description: item.description || description || "",
+          image: item.image || image || "",
+          expiryTime: item.expiryTime || expiryTime,
+          dietaryType: item.dietaryType || dietaryType || 'Veg',
+          items: [item]
+        });
+        return newFood.save();
+      });
+      createdListings = await Promise.all(promises);
+    } else {
+      if (!foodType || !quantity) {
+        return res.status(400).json({ message: "Food title and quantity are required" });
+      }
+      const newFood = new FoodListing({
+        donorId,
+        foodType,
+        quantity: Number(quantity),
+        description: description || "",
+        image: image || "",
+        expiryTime: expiryTime,
+        dietaryType: dietaryType || 'Veg',
+        items: []
+      });
+      await newFood.save();
+      createdListings = [newFood];
     }
-
-    const newFood = new FoodListing({
-      donorId,
-      foodType,
-      quantity,
-      description,
-      image,
-      expiryTime
-    });
-
-    await newFood.save();
 
     res.status(201).json({
       success: true,
-      message: "Food listing created successfully",
-      data: newFood
+      message: `${createdListings.length} separate food listing(s) created successfully!`,
+      data: createdListings
     });
   } catch (err) {
     console.log(err);
@@ -34,8 +59,8 @@ const createFoodListing = async (req, res) => {
 const getAllFoodListings = async (req, res) => {
   try {
     const foods = await FoodListing.find()
-      .populate("donorId", "name rating profileImage")
-      .populate("claimedBy", "name")
+      .populate("donorId", "name rating profileImage phone email businessType address")
+      .populate("claimedBy", "name email phone")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -54,7 +79,7 @@ const getFoodListingById = async (req, res) => {
     const { id } = req.params;
 
     const food = await FoodListing.findById(id)
-      .populate("donorId", "name email phone rating profileImage")
+      .populate("donorId", "name email phone rating profileImage businessType address")
       .populate("claimedBy", "name email phone");
 
     if (!food) {
@@ -74,7 +99,7 @@ const getFoodListingById = async (req, res) => {
 const updateFoodListing = async (req, res) => {
   try {
     const { id } = req.params;
-    const { foodType, quantity, description, image, expiryTime } = req.body;
+    const { foodType, quantity, description, image, expiryTime, dietaryType, items } = req.body;
     const userId = req.user.id;
 
     let food = await FoodListing.findById(id);
@@ -88,11 +113,13 @@ const updateFoodListing = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to update this listing" });
     }
 
-    if (foodType) food.foodType = foodType;
-    if (quantity) food.quantity = quantity;
-    if (description) food.description = description;
-    if (image) food.image = image;
-    if (expiryTime) food.expiryTime = expiryTime;
+    if (foodType !== undefined) food.foodType = foodType;
+    if (quantity !== undefined) food.quantity = quantity;
+    if (description !== undefined) food.description = description;
+    if (image !== undefined) food.image = image;
+    if (expiryTime !== undefined) food.expiryTime = expiryTime;
+    if (dietaryType !== undefined) food.dietaryType = dietaryType;
+    if (items !== undefined) food.items = Array.isArray(items) ? items : [];
 
     await food.save();
 

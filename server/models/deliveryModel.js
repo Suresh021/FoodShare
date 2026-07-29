@@ -4,13 +4,13 @@ const deliverySchema = mongoose.Schema({
     foodListingId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'foodListing',
-        requied: true
+        required: true
     },
 
     partnerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'user',
-        required: true
+        default: null
     },
 
     ngoId: {
@@ -19,10 +19,15 @@ const deliverySchema = mongoose.Schema({
         required: true
     },
 
+    otp: {
+        type: String,
+        default: ""
+    },
+
     status: {
         type: String,
-        enum: ['pending', 'completed'],
-        default: 'pending'
+        enum: ['open', 'claimed', 'pending', 'completed'],
+        default: 'open'
     },
 
     rating: {
@@ -32,6 +37,26 @@ const deliverySchema = mongoose.Schema({
 
     feedback: {
         type: String
+    },
+
+    partnerRating: {
+        type: Number,
+        default: 0
+    },
+
+    partnerFeedback: {
+        type: String,
+        default: ""
+    },
+
+    donorRating: {
+        type: Number,
+        default: 0
+    },
+
+    donorFeedback: {
+        type: String,
+        default: ""
     },
 
     createdAt: {

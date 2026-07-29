@@ -23,7 +23,7 @@ const getUserProfile = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, phone, profileImage } = req.body;
+    const { name, phone, profileImage, servingTarget, address, businessType, vehicleType } = req.body;
 
     let user = await User.findById(userId);
 
@@ -31,9 +31,13 @@ const updateUserProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (name) user.name = name;
-    if (phone) user.phone = phone;
-    if (profileImage) user.profileImage = profileImage;
+    if (name !== undefined) user.name = name;
+    if (phone !== undefined) user.phone = phone;
+    if (profileImage !== undefined) user.profileImage = profileImage;
+    if (servingTarget !== undefined) user.servingTarget = servingTarget;
+    if (address !== undefined) user.address = address;
+    if (businessType !== undefined) user.businessType = businessType;
+    if (vehicleType !== undefined) user.vehicleType = vehicleType;
 
     await user.save();
 

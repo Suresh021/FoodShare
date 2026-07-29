@@ -1,14 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Leaf, LogOut, LayoutDashboard, UtensilsCrossed, PlusCircle, Menu, X, ChevronDown } from 'lucide-react';
+import api from '../services/api';
+import { Leaf, LogOut, LayoutDashboard, UtensilsCrossed, PlusCircle, Menu, X, User, Bell } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifs, setShowNotifs] = useState(false);
   const location = useLocation();
 
   const isActive = (path) => location.pathname === path;
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get('/deliveries/notifications');
+      setNotifications(res.data?.data || []);
+    } catch {
+      // silent
+    }
+  };
+
+  const markRead = async () => {
+    try {
+      await api.put('/deliveries/notifications/read');
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    } catch {
+      // silent
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-slate-100 shadow-sm">
@@ -64,14 +95,64 @@ const Navbar = () => {
                     Post Food
                   </Link>
                 )}
+
+                {/* Notifications Bell */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowNotifs(!showNotifs);
+                      if (unreadCount > 0) markRead();
+                    }}
+                    className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 relative transition-colors"
+                  >
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-bounce">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Notification Dropdown Drawer */}
+                  {showNotifs && (
+                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl border border-slate-100 shadow-2xl p-4 z-50 max-h-96 overflow-y-auto">
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-100 mb-2">
+                        <span className="font-bold text-xs uppercase text-slate-500">Notifications</span>
+                        <span className="text-[10px] text-green-600 font-semibold">{notifications.length} total</span>
+                      </div>
+                      {notifications.length === 0 ? (
+                        <p className="text-xs text-slate-400 text-center py-6">No notifications yet</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {notifications.map((n) => (
+                            <div key={n._id} className={`p-2.5 rounded-xl text-xs ${n.isRead ? 'bg-slate-50 text-slate-600' : 'bg-green-50 text-green-900 font-semibold'}`}>
+                              <p className="leading-snug">{n.message}</p>
+                              <span className="text-[10px] text-slate-400 mt-1 block">
+                                {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm font-semibold text-slate-800 leading-tight">{user.name}</span>
-                    <span className="text-xs text-slate-400 capitalize">{user.role}</span>
-                  </div>
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow">
-                    {user.name?.charAt(0).toUpperCase()}
-                  </div>
+                  <Link to="/profile" className="flex items-center gap-2 group">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow group-hover:scale-105 transition-transform overflow-hidden">
+                      {user.profileImage ? (
+                        <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        user.name?.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-semibold text-slate-800 leading-tight group-hover:text-green-600 transition-colors">{user.name}</span>
+                      <span className="text-[10px] text-slate-400 capitalize font-medium">{user.role}</span>
+                    </div>
+                  </Link>
+
                   <button
                     onClick={logout}
                     title="Logout"
@@ -110,9 +191,14 @@ const Navbar = () => {
             <UtensilsCrossed className="h-4 w-4" /> Browse Food
           </Link>
           {user && (
-            <Link to="/dashboard" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-green-50 hover:text-green-700" onClick={() => setMobileOpen(false)}>
-              <LayoutDashboard className="h-4 w-4" /> Dashboard
-            </Link>
+            <>
+              <Link to="/dashboard" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-green-50 hover:text-green-700" onClick={() => setMobileOpen(false)}>
+                <LayoutDashboard className="h-4 w-4" /> Dashboard
+              </Link>
+              <Link to="/profile" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-green-50 hover:text-green-700" onClick={() => setMobileOpen(false)}>
+                <User className="h-4 w-4" /> Profile
+              </Link>
+            </>
           )}
           {user?.role === 'donor' && (
             <Link to="/foods/create" className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-green-600 text-white" onClick={() => setMobileOpen(false)}>
